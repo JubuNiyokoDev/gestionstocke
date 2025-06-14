@@ -9,7 +9,7 @@
         <input type="text" id="nom_categorie" name="nom_categorie" value="{{ categorie.nom_categorie }}" required>
     </div>
     <div>
-        <button type="submit">Enregistrer</button>
+        <button type="submit">Modifier</button>
         <a href="{{ url('categorie') }}">Annuler</a>
     </div>
 </form>

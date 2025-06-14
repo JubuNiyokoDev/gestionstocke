@@ -1,103 +1,228 @@
-use Phalcon\Mvc\Controller;
-use Phalcon\Http\Response;
-
 <?php
+declare(strict_types=1);
+
+ 
+
+use Phalcon\Mvc\Model\Criteria;
+use Phalcon\Paginator\Adapter\Model;
 
 
-class ConcernerController extends Controller
+class ConcernerController extends ControllerBase
 {
-    // List all records
+    /**
+     * Index action
+     */
     public function indexAction()
     {
-        $concerner = Concerner::find();
-        $this->view->concerner = $concerner;
+        $this->view->setVar('concerner', new Concerner());
     }
 
-    // Show a single record
-    public function showAction($id_vente, $id_produit)
+    /**
+     * Searches for concerner
+     */
+    public function searchAction()
     {
-        $concerner = Concerner::findFirst([
-            'conditions' => 'id_vente = ?1 AND id_produit = ?2',
-            'bind' => [
-                1 => $id_vente,
-                2 => $id_produit
+        $numberPage = $this->request->getQuery('page', 'int', 1);
+        $parameters = Criteria::fromInput($this->di, 'Concerner', $_GET)->getParams();
+        $parameters['order'] = "ID_PRODUIT";
+
+        $paginator   = new Model(
+            [
+                'model'      => 'Concerner',
+                'parameters' => $parameters,
+                'limit'      => 10,
+                'page'       => $numberPage,
             ]
-        ]);
-        if (!$concerner) {
-            $this->flashSession->error("Concerner not found");
-            return $this->response->redirect('concerner/index');
+        );
+
+        $paginate = $paginator->paginate();
+
+        if (0 === $paginate->getTotalItems()) {
+            $this->flash->notice("The search did not find any concerner");
+
+            $this->dispatcher->forward([
+                "controller" => "concerner",
+                "action" => "index"
+            ]);
+
+            return;
         }
-        $this->view->concerner = $concerner;
+
+        $this->view->page = $paginate;
     }
 
-    // Create a new record
+    /**
+     * Displays the creation form
+     */
+    public function newAction()
+    {
+        $this->view->setVar('concerner', new Concerner());
+    }
+
+    /**
+     * Edits a concerner
+     *
+     * @param string $ID_PRODUIT
+     */
+    public function editAction($ID_PRODUIT)
+    {
+        if (!$this->request->isPost()) {
+            $concerner = Concerner::findFirstByID_PRODUIT($ID_PRODUIT);
+            if (!$concerner) {
+                $this->flash->error("concerner was not found");
+
+                $this->dispatcher->forward([
+                    'controller' => "concerner",
+                    'action' => 'index'
+                ]);
+
+                return;
+            }
+
+            $this->view->ID_PRODUIT = $concerner->ID_PRODUIT;
+            $this->view->setVar('concerner', $concerner);
+
+            //$assignTagDefaults$
+        }
+    }
+
+    /**
+     * Creates a new concerner
+     */
     public function createAction()
     {
-        if ($this->request->isPost()) {
-            $concerner = new Concerner();
-            $concerner->id_vente = $this->request->getPost('id_vente', 'int');
-            $concerner->id_produit = $this->request->getPost('id_produit', 'int');
-            $concerner->quantite_vendue = $this->request->getPost('quantite_vendue', 'int');
-            $concerner->prix_unitaire_vendue = $this->request->getPost('prix_unitaire_vendue', 'float');
+        if (!$this->request->isPost()) {
+            $this->dispatcher->forward([
+                'controller' => "concerner",
+                'action' => 'index'
+            ]);
 
-            if ($concerner->save()) {
-                $this->flashSession->success("Concerner created successfully");
-                return $this->response->redirect('concerner/index');
-            } else {
-                $this->flashSession->error("Failed to create Concerner");
-            }
+            return;
         }
+
+        $concerner = new Concerner();
+        $concerner->iDVENTE = $this->request->getPost("ID_VENTE");
+        $concerner->qUANTITEVENDUE = $this->request->getPost("QUANTITE_VENDUE");
+        $concerner->pRIXUNITAIREVENDUE = $this->request->getPost("PRIX_UNITAIRE_VENDUE", "int");
+        
+
+        if (!$concerner->save()) {
+            foreach ($concerner->getMessages() as $message) {
+                $this->flash->error($message);
+            }
+
+            $this->dispatcher->forward([
+                'controller' => "concerner",
+                'action' => 'new'
+            ]);
+
+            return;
+        }
+
+        $this->flash->success("concerner was created successfully");
+
+        $this->dispatcher->forward([
+            'controller' => "concerner",
+            'action' => 'index'
+        ]);
     }
 
-    // Edit an existing record
-    public function editAction($id_vente, $id_produit)
+    /**
+     * Saves a concerner edited
+     *
+     */
+    public function saveAction()
     {
-        $concerner = Concerner::findFirst([
-            'conditions' => 'id_vente = ?1 AND id_produit = ?2',
-            'bind' => [
-                1 => $id_vente,
-                2 => $id_produit
-            ]
-        ]);
+
+        if (!$this->request->isPost()) {
+            $this->dispatcher->forward([
+                'controller' => "concerner",
+                'action' => 'index'
+            ]);
+
+            return;
+        }
+
+        $ID_PRODUIT = $this->request->getPost("ID_PRODUIT");
+        $concerner = Concerner::findFirstByID_PRODUIT($ID_PRODUIT);
+
         if (!$concerner) {
-            $this->flashSession->error("Concerner not found");
-            return $this->response->redirect('concerner/index');
+            $this->flash->error("concerner does not exist " . $ID_PRODUIT);
+
+            $this->dispatcher->forward([
+                'controller' => "concerner",
+                'action' => 'index'
+            ]);
+
+            return;
         }
 
-        if ($this->request->isPost()) {
-            $concerner->quantite_vendue = $this->request->getPost('quantite_vendue', 'int');
-            $concerner->prix_unitaire_vendue = $this->request->getPost('prix_unitaire_vendue', 'float');
+        $concerner->iDVENTE = $this->request->getPost("ID_VENTE");
+        $concerner->qUANTITEVENDUE = $this->request->getPost("QUANTITE_VENDUE");
+        $concerner->pRIXUNITAIREVENDUE = $this->request->getPost("PRIX_UNITAIRE_VENDUE", "int");
+        
 
-            if ($concerner->save()) {
-                $this->flashSession->success("Concerner updated successfully");
-                return $this->response->redirect('concerner/index');
-            } else {
-                $this->flashSession->error("Failed to update Concerner");
+        if (!$concerner->save()) {
+
+            foreach ($concerner->getMessages() as $message) {
+                $this->flash->error($message);
             }
+
+            $this->dispatcher->forward([
+                'controller' => "concerner",
+                'action' => 'edit',
+                'params' => [$concerner->ID_PRODUIT]
+            ]);
+
+            return;
         }
 
-        $this->view->concerner = $concerner;
+        $this->flash->success("concerner was updated successfully");
+
+        $this->dispatcher->forward([
+            'controller' => "concerner",
+            'action' => 'index'
+        ]);
     }
 
-    // Delete a record
-    public function deleteAction($id_vente, $id_produit)
+    /**
+     * Deletes a concerner
+     *
+     * @param string $ID_PRODUIT
+     */
+    public function deleteAction($ID_PRODUIT)
     {
-        $concerner = Concerner::findFirst([
-            'conditions' => 'id_vente = ?1 AND id_produit = ?2',
-            'bind' => [
-                1 => $id_vente,
-                2 => $id_produit
-            ]
-        ]);
-        if ($concerner) {
-            if ($concerner->delete()) {
-                $this->flashSession->success("Concerner deleted successfully");
-            } else {
-                $this->flashSession->error("Failed to delete Concerner");
-            }
-        } else {
-            $this->flashSession->error("Concerner not found");
+        $concerner = Concerner::findFirstByID_PRODUIT($ID_PRODUIT);
+        if (!$concerner) {
+            $this->flash->error("concerner was not found");
+
+            $this->dispatcher->forward([
+                'controller' => "concerner",
+                'action' => 'index'
+            ]);
+
+            return;
         }
-        return $this->response->redirect('concerner/index');
+
+        if (!$concerner->delete()) {
+
+            foreach ($concerner->getMessages() as $message) {
+                $this->flash->error($message);
+            }
+
+            $this->dispatcher->forward([
+                'controller' => "concerner",
+                'action' => 'search'
+            ]);
+
+            return;
+        }
+
+        $this->flash->success("concerner was deleted successfully");
+
+        $this->dispatcher->forward([
+            'controller' => "concerner",
+            'action' => "index"
+        ]);
     }
 }
